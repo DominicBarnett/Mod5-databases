@@ -1,17 +1,24 @@
 from flask import Flask, request, redirect, render_template, url_for
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
+from pymongo.mongo_client import MongoClient
+
 
 ############################################################
 # SETUP
 ############################################################
 
 app = Flask(__name__)
+uri = 'mongodb+srv://dombarnett03:3SYrz9JsbamU6txd@cluster0.zvgijzx.mongodb.net/?retryWrites=true&w=majority'
+client = MongoClient(uri)
+db = client.PlantsDatabase
+try:
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
 
-app.config["MONGO_URI"] = "mongodb://localhost:27017/plantsDatabase"
-mongo = PyMongo(app)
-plants = mongo.db.plants
-harvests = mongo.db.harvests
+except Exception as e:
+    print(e)
+
 
 ############################################################
 # ROUTES
@@ -24,7 +31,8 @@ def plants_list():
     # TODO: Replace the following line with a database call to retrieve *all*
     # plants from the Mongo database's `plants` collection.
 
-    plants_data = plants.find()
+    plants_data = db.Plants.find()
+    print(plants_data)
 
     context = {
         'plants': plants_data,
@@ -51,7 +59,7 @@ def create():
         # TODO: Make an `insert_one` database call to insert the object into the
         # database's `plants` collection, and get its inserted id. Pass the 
         # inserted id into the redirect call below.
-        new_plant_id = plants.insert_one(new_plant).inserted_id
+        new_plant_id = db.Plants.insert_one(new_plant).inserted_id
 
         return redirect(url_for('detail', plant_id=new_plant_id))
 
@@ -64,7 +72,7 @@ def detail(plant_id):
 
     # TODO: Replace the following line with a database call to retrieve *one*
     # plant from the database, whose id matches the id passed in via the URL.
-    plant_to_show = plants.find_one({"_id": ObjectId(plant_id)})
+    plant_to_show = db.Plants.find_one({"_id": ObjectId(plant_id)})
     plant_to_show['_id']
 
     # TODO: Use the `find` database operation to find all harvests for the
@@ -72,7 +80,7 @@ def detail(plant_id):
     # HINT: This query should be on the `harvests` collection, not the `plants`
     # collection.
     harvests_plant_id = plant_to_show['_id']
-    harvests_to_show = harvests.find()
+    harvests_to_show = db.Harvest.find()
 
     context = {
         'plant' : plant_to_show,
@@ -100,7 +108,7 @@ def harvest(plant_id):
 
     # TODO: Make an `insert_one` database call to insert the object into the 
     # `harvests` collection of the database.
-    harvests.insert_one(new_harvest)
+    db.Harvest.insert_one(new_harvest)
 
     return redirect(url_for('detail', plant_id=plant_id))
 
@@ -117,13 +125,13 @@ def edit(plant_id):
             'date_planted': request.form['date_planted'],
         }
         updated_plant = { "$set": edit_plant }
-        plants.update_one({"_id": ObjectId(plant_id)}, updated_plant)
+        db.Plants.update_one({"_id": ObjectId(plant_id)}, updated_plant)
         
         return redirect(url_for('detail', plant_id=plant_id))
     else:
         # TODO: Make a `find_one` database call to get the plant object with the
         # passed-in _id.
-        plant_to_show = plants.find_one({"_id": ObjectId(plant_id)})
+        plant_to_show = db.Plants.find_one({"_id": ObjectId(plant_id)})
 
         context = {
             'plant': plant_to_show
@@ -135,10 +143,10 @@ def edit(plant_id):
 def delete(plant_id):
     # TODO: Make a `delete_one` database call to delete the plant with the given
     # id.
-    plants.delete_one({"_id": ObjectId(plant_id)})
+    db.Plants.delete_one({"_id": ObjectId(plant_id)})
     # TODO: Also, make a `delete_many` database call to delete all harvests with
     # the given plant id.
-    harvests.delete_many({"_id": ObjectId(plant_id)})
+    db.Harvest.delete_many({"_id": ObjectId(plant_id)})
 
     return redirect(url_for('plants_list'))
 
